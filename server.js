@@ -579,9 +579,12 @@ app.post('/api/course/:courseId/progress', authenticateToken, (req, res) => {
 
 
 // --- START THE SERVER ---
-app.listen(PORT, () => {
-    console.log(`SkillHub NG backend is running on http://localhost:${PORT}`);
-    console.log("If using an online compiler, connect to the public URL, not localhost.");
+const PORT = process.env.PORT || 3002;
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ SkillHub NG backend is running on port ${PORT}`);
+    console.log(`Access it via Render public URL (not localhost).`);
 });
+
 
 
