@@ -1,5 +1,6 @@
-const express = require('express');
-const cors = require('cors');
+require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
@@ -8,10 +9,11 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const multer = require('multer');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
-const path = require('path');
-const PORT = 3002; // Using port 3002 as 3001 is in use
+const PORT = process.env.PORT || 3002;
+sing port 3002 as 3001 is in use
 
 // --- MIDDLEWARE ---
 // Allow cross-origin requests during local development. In production restrict this.
@@ -585,6 +587,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ SkillHub NG backend is running on port ${PORT}`);
     console.log(`Access it via Render public URL (not localhost).`);
 });
+
 
 
 
