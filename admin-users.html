@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - Users</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <nav class="bg-gray-800 text-white mb-6 p-4">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <div class="text-xl font-bold">SkillHub Admin</div>
+      <div class="space-x-4">
+        <a href="admin-dashboard.html" class="hover:text-gray-300">Dashboard</a>
+        <a href="admin-courses.html" class="hover:text-gray-300">Manage Courses</a>
+        <a href="admin-users.html" class="hover:text-gray-300">Manage Users</a>
+        <a href="#" onclick="logout()" class="hover:text-gray-300">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Admin - Manage Users</h1>
+    <div id="users" class="bg-white p-6 rounded shadow"></div>
+  </div>
+  <script>
+  const API = 'http://localhost:3002';
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    if (!token || role !== 'admin') {
+      window.location.href = 'login.html';
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('role');
+      window.location.href = 'login.html';
+    }
+
+    async function loadUsers() {
+      const res = await fetch(API + '/api/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) return document.getElementById('users').innerText = 'Could not load users (are you admin?)';
+      const rows = await res.json();
+      const container = document.getElementById('users');
+      container.innerHTML = '';
+      rows.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'p-3 border-b flex justify-between items-center';
+        div.innerHTML = `<div><strong>${u.fullName}</strong><div class="text-sm text-gray-600">${u.email}</div></div>
+                         <div>
+                           <select data-id="${u.id}" class="role-select p-1 border rounded">
+                             <option value="student" ${u.role==='student'?'selected':''}>student</option>
+                             <option value="admin" ${u.role==='admin'?'selected':''}>admin</option>
+                           </select>
+                         </div>`;
+        container.appendChild(div);
+      });
+
+      document.querySelectorAll('.role-select').forEach(sel => sel.addEventListener('change', async (e) => {
+        const id = e.target.getAttribute('data-id');
+        const role = e.target.value;
+        await fetch(API + '/api/admin/users/' + id + '/role', { method: 'PUT', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body: JSON.stringify({ role }) });
+        loadUsers();
+      }));
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

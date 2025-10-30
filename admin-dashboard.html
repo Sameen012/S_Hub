@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Dashboard - SkillHub NG</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <nav class="bg-gray-800 text-white p-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <div class="text-xl font-bold">SkillHub Admin</div>
+      <div class="space-x-4">
+        <a href="admin-dashboard.html" class="hover:text-gray-300">Dashboard</a>
+        <a href="admin-courses.html" class="hover:text-gray-300">Manage Courses</a>
+        <a href="admin-users.html" class="hover:text-gray-300">Manage Users</a>
+        <a href="#" onclick="logout()" class="hover:text-gray-300">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto p-6">
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div class="bg-white p-6 rounded shadow">
+        <h3 class="font-semibold text-lg mb-2">Total Users</h3>
+        <p id="total-users" class="text-3xl font-bold">—</p>
+      </div>
+      <div class="bg-white p-6 rounded shadow">
+        <h3 class="font-semibold text-lg mb-2">Total Courses</h3>
+        <p id="total-courses" class="text-3xl font-bold">—</p>
+      </div>
+      <div class="bg-white p-6 rounded shadow">
+        <h3 class="font-semibold text-lg mb-2">Active Admins</h3>
+        <p id="total-admins" class="text-3xl font-bold">—</p>
+      </div>
+    </section>
+
+    <section class="bg-white p-6 rounded shadow">
+      <h2 class="text-xl font-bold mb-4">Recent Activity</h2>
+      <div id="recent-activity" class="space-y-3 text-gray-700">Loading...</div>
+    </section>
+  </main>
+
+  <script>
+    // Protect admin page
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    console.log('role:', role);
+    console.log('token:', token);
+    if (!token || role !== 'admin') {
+      window.location.href = 'login.html';
+    }
+
+    const API = 'http://localhost:3002';
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('role');
+      window.location.href = 'login.html';
+    }
+
+    async function loadStats() {
+      try {
+        // Try fetching users and courses counts; if endpoints differ server-side, they'll fail gracefully
+        const [usersRes, coursesRes] = await Promise.all([
+          fetch(`${API}/api/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API}/api/courses`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+
+        if (usersRes.ok) {
+          const users = await usersRes.json();
+          document.getElementById('total-users').textContent = users.length;
+          const admins = users.filter(u => u.role === 'admin').length;
+          document.getElementById('total-admins').textContent = admins;
+        } else {
+          document.getElementById('total-users').textContent = 'N/A';
+          document.getElementById('total-admins').textContent = 'N/A';
+        }
+
+        if (coursesRes.ok) {
+          const courses = await coursesRes.json();
+          document.getElementById('total-courses').textContent = courses.length;
+        } else {
+          document.getElementById('total-courses').textContent = 'N/A';
+        }
+
+        // Recent activity: lightweight sample using users and courses actions
+        const recent = [];
+        if (usersRes.ok) recent.push('Loaded users list');
+        if (coursesRes.ok) recent.push('Loaded courses list');
+        const ra = document.getElementById('recent-activity');
+        ra.innerHTML = recent.map(r => `<div>• ${r}</div>`).join('') || '<div>No recent activity</div>';
+
+      } catch (err) {
+        console.error('Error loading admin stats', err);
+        document.getElementById('total-users').textContent = 'N/A';
+        document.getElementById('total-courses').textContent = 'N/A';
+        document.getElementById('total-admins').textContent = 'N/A';
+        document.getElementById('recent-activity').textContent = 'Could not load activity';
+      }
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

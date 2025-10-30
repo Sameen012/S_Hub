@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - SkillHub NG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+
+    <div class="flex h-screen bg-gray-200">
+        <!-- Sidebar -->
+        <div class="hidden md:flex w-64 bg-gray-800 text-white flex-col">
+            <div class="p-6 text-2xl font-bold border-b border-gray-700">
+                <a href="index.html">SkillHub NG</a>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="dashboard.html" class="flex items-center px-4 py-2 bg-gray-700 rounded-lg"><i class="fas fa-tachometer-alt mr-3"></i>Dashboard</a>
+                <a href="courses.html" class="flex items-center px-4 py-2 hover:bg-gray-700 rounded-lg"><i class="fas fa-book mr-3"></i>Browse Courses</a>
+            </nav>
+            <div class="p-4 border-t border-gray-700">
+                <button id="logout-button" class="w-full flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg"><i class="fas fa-sign-out-alt mr-3"></i>Logout</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="bg-white shadow p-6 flex justify-between items-center">
+                <h1 id="welcome-message" class="text-2xl font-bold text-gray-800">Welcome Back...</h1>
+                 <button id="mobile-menu-button" class="md:hidden text-gray-800 focus:outline-none">
+                    <i class="fas fa-bars fa-lg"></i>
+                </button>
+            </header>
+
+             <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden bg-gray-800 text-white">
+                <a href="dashboard.html" class="block py-2 px-4 text-sm bg-gray-700">Dashboard</a>
+                <a href="courses.html" class="block py-2 px-4 text-sm hover:bg-gray-700">Browse Courses</a>
+                <button id="logout-button-mobile" class="block w-full text-left py-2 px-4 text-sm bg-red-600 hover:bg-red-700">Logout</button>
+            </div>
+
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Progress Card -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-bold mb-2">Overall Progress</h2>
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div id="overall-progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <p id="overall-progress-text" class="text-right text-gray-600 mt-2">0% Completed</p>
+                    </div>
+                    <!-- Certificates Card -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h2 class="text-xl font-bold mb-2">Certificates Earned</h2>
+                        <p id="certificates-earned" class="text-3xl font-bold text-gray-800">0</p>
+                        <p class="text-gray-600">Complete 80% of a course to earn one!</p>
+                    </div>
+                    <!-- Recommended Courses -->
+                    <div class="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between">
+                        <h2 class="text-xl font-bold mb-2">Find a New Course</h2>
+                        <p class="text-gray-600 mb-4">Continue your learning journey by finding a new skill to master.</p>
+                         <a href="courses.html" class="bg-blue-500 text-white text-center font-semibold px-6 py-2 rounded-full hover:bg-blue-600">Browse Courses</a>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-bold mb-4">Your Enrolled Courses</h2>
+                    <div id="enrolled-courses-list" class="space-y-4">
+                        <!-- Courses will be dynamically inserted here -->
+                         <p id="no-courses-message" class="text-gray-500">You are not enrolled in any courses yet. <a href="courses.html" class="text-blue-500 hover:underline">Click here to browse courses.</a></p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            const role = localStorage.getItem('role');
+            console.log('Dashboard load - token present?', !!token, 'role in localStorage:', role);
+
+            // If an admin somehow lands on the user dashboard, redirect to admin admin dashboard
+            if (role === 'admin') {
+                console.log('Dashboard: detected admin role in localStorage; redirecting to admin-dashboard.html');
+                window.location.href = 'admin-dashboard.html';
+                return;
+            }
+
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            let userName = localStorage.getItem('userName');
+            // If role isn't stored but we have a token, fetch /api/auth/me to determine role and redirect if admin
+            if (!role && token) {
+                try {
+                    const meResp = await fetch('http://localhost:3002/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (meResp.ok) {
+                        const meData = await meResp.json();
+                        const serverRole = meData.user && meData.user.role;
+                        if (serverRole) {
+                            localStorage.setItem('role', serverRole);
+                            // If server reports admin, redirect
+                            if (serverRole === 'admin') {
+                                window.location.href = 'admin-dashboard.html';
+                                return;
+                            }
+                        }
+                        if (meData.user && meData.user.fullName) {
+                            userName = meData.user.fullName;
+                            localStorage.setItem('userName', userName);
+                        }
+                    } else {
+                        // If /me failed (token invalid), force logout
+                        if (meResp.status === 401 || meResp.status === 403) {
+                            logout();
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Could not fetch /api/auth/me', err);
+                }
+            }
+
+            if (userName) {
+                document.getElementById('welcome-message').textContent = `Welcome Back, ${userName}!`;
+            }
+
+            // Fetch dashboard data from the server
+            try {
+                const response = await fetch('http://localhost:3002/api/dashboard', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 403 || response.status === 401) {
+                        logout();
+                    }
+                    throw new Error('Failed to fetch dashboard data');
+                }
+
+                const data = await response.json();
+                updateDashboardUI(data);
+
+            } catch (error) {
+                console.error('Error fetching dashboard:', error);
+                document.getElementById('enrolled-courses-list').innerHTML = `<p class="text-red-500">Could not load dashboard data. Please try again later.</p>`;
+            }
+
+            function updateDashboardUI(data) {
+                // Update Overall Progress
+                const progressBar = document.getElementById('overall-progress-bar');
+                const progressText = document.getElementById('overall-progress-text');
+                const overallProgress = Math.round(data.overallProgress);
+                progressBar.style.width = `${overallProgress}%`;
+                progressText.textContent = `${overallProgress}% Completed`;
+
+                // Update Certificates Earned
+                document.getElementById('certificates-earned').textContent = data.certificatesEarned;
+
+                // Update Enrolled Courses List
+                const courseList = document.getElementById('enrolled-courses-list');
+                const noCoursesMessage = document.getElementById('no-courses-message');
+                
+                if (data.enrolledCourses.length > 0) {
+                    noCoursesMessage.style.display = 'none';
+                    courseList.innerHTML = ''; // Clear the list
+                    data.enrolledCourses.forEach(course => {
+                        const statusClass = course.status === 'Completed' ? 'text-green-600' : 'text-yellow-600';
+                        const courseElement = document.createElement('div');
+                        courseElement.className = 'border-b py-4';
+                        courseElement.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-semibold">${course.name}</h3>
+                                    <p class="text-sm font-semibold ${statusClass}">${course.status}</p>
+                                </div>
+                                <a href="course-details.html?id=${course.id}" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-full hover:bg-gray-300">Continue Learning</a>
+                            </div>
+                             <div class="w-full bg-gray-200 rounded-full h-2.5 mt-3">
+                                <div class="bg-green-600 h-2.5 rounded-full" style="width: ${course.progress}%"></div>
+                            </div>
+                        `;
+                        courseList.appendChild(courseElement);
+                    });
+                }
+            }
+            
+            // Logout functionality
+            function logout() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('role');
+                window.location.href = 'index.html';
+            }
+            document.getElementById('logout-button').addEventListener('click', logout);
+            document.getElementById('logout-button-mobile')?.addEventListener('click', logout);
+
+            // Mobile menu toggle
+            document.getElementById('mobile-menu-button').addEventListener('click', () => {
+                document.getElementById('mobile-menu').classList.toggle('hidden');
+            });
+        });
+    </script>
+</body>
+</html>
+

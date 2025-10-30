@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - Courses</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <nav class="bg-gray-800 text-white mb-6 p-4">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <div class="text-xl font-bold">SkillHub Admin</div>
+      <div class="space-x-4">
+        <a href="admin-dashboard.html" class="hover:text-gray-300">Dashboard</a>
+        <a href="admin-courses.html" class="hover:text-gray-300">Manage Courses</a>
+        <a href="admin-users.html" class="hover:text-gray-300">Manage Users</a>
+        <a href="#" onclick="logout()" class="hover:text-gray-300">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Admin - Manage Courses</h1>
+    <div class="mb-6 bg-white p-6 rounded shadow">
+      <h2 class="font-semibold mb-2">Create Course</h2>
+      <div class="grid grid-cols-1 gap-2">
+        <input id="name" placeholder="Course name" class="p-2 border rounded" />
+        <input id="category" placeholder="Category" class="p-2 border rounded" />
+        <input id="level" placeholder="Level" class="p-2 border rounded" />
+        <input id="instructor" placeholder="Instructor" class="p-2 border rounded" />
+        <textarea id="description" placeholder="Description" class="p-2 border rounded"></textarea>
+        
+        <div id="videoList" class="space-y-2">
+          <div class="video-entry grid grid-cols-1 gap-2 p-4 border rounded">
+            <input class="videoTitle p-2 border rounded" placeholder="Video Title" />
+            <input class="videoUrl p-2 border rounded" placeholder="YouTube URL" />
+            <input class="videoFile p-2" type="file" accept="video/*" />
+          </div>
+        </div>
+        
+        <button id="addVideo" class="bg-green-500 text-white px-4 py-2 rounded">+ Add Another Video</button>
+        <button id="create" class="bg-blue-600 text-white px-4 py-2 rounded">Create Course</button>
+      </div>
+    </div>
+
+    <div id="list" class="bg-white p-6 rounded shadow">
+      <h2 class="font-semibold mb-4">Existing Courses</h2>
+      <div id="courses"></div>
+    </div>
+  </div>
+  <script>
+    // Check if user is admin, redirect if not
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    
+    if (!token || role !== 'admin') {
+        window.location.href = 'login.html';
+    }
+    
+    const API = 'http://localhost:3002';
+
+    // Add video entry UI
+    document.getElementById('addVideo').addEventListener('click', () => {
+      const template = document.querySelector('.video-entry').cloneNode(true);
+      template.querySelectorAll('input').forEach(input => input.value = '');
+      document.getElementById('videoList').appendChild(template);
+    });
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('role');
+        window.location.href = 'login.html';
+    }
+
+    async function loadCourses() {
+      const res = await fetch(API + '/api/courses');
+      const data = await res.json();
+      const container = document.getElementById('courses');
+      container.innerHTML = '';
+      data.forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'p-3 border-b flex justify-between items-center';
+        el.innerHTML = `<div><strong>${c.name}</strong><div class="text-sm text-gray-600">${c.category || ''} • ${c.level || ''} • ${c.instructor || ''}</div></div>
+                      <div>
+                        <button data-id="${c.id}" class="edit bg-yellow-400 text-white px-3 py-1 rounded">Edit</button>
+                        <button data-id="${c.id}" class="del bg-red-500 text-white px-3 py-1 rounded">Delete</button>
+                      </div>`;
+        container.appendChild(el);
+      });
+
+      document.querySelectorAll('.del').forEach(b => b.addEventListener('click', async (e) => {
+        const id = e.target.getAttribute('data-id');
+        if (!confirm('Delete course?')) return;
+        await fetch(API + '/api/admin/courses/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+        loadCourses();
+      }));
+    }
+
+    document.getElementById('create').addEventListener('click', async () => {
+      const form = new FormData();
+      form.append('name', document.getElementById('name').value);
+      form.append('description', document.getElementById('description').value);
+      form.append('category', document.getElementById('category').value);
+      form.append('level', document.getElementById('level').value);
+      form.append('instructor', document.getElementById('instructor').value);
+
+      // Handle multiple videos
+      const videoEntries = document.querySelectorAll('.video-entry');
+      videoEntries.forEach((entry, index) => {
+        const title = entry.querySelector('.videoTitle').value;
+        const url = entry.querySelector('.videoUrl').value;
+        const file = entry.querySelector('.videoFile').files[0];
+        
+        if (title) form.append(`videoTitle_${index}`, title);
+        if (url) form.append(`videoUrl_${index}`, url);
+        if (file) form.append(`videoFile_${index}`, file);
+      });
+      form.append('level', document.getElementById('level').value);
+      form.append('instructor', document.getElementById('instructor').value);
+      const videoUrl = document.getElementById('videoUrl').value;
+      if (videoUrl) form.append('videoUrl', videoUrl);
+      const file = document.getElementById('videoFile').files[0];
+      if (file) form.append('videoFile', file);
+
+      await fetch(API + '/api/admin/courses', { method: 'POST', headers: { 'Authorization':'Bearer ' + token }, body: form });
+      loadCourses();
+    });
+
+    loadCourses();
+  </script>
+</body>
+</html>

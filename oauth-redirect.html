@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OAuth Redirect</title>
+</head>
+<body>
+  <p>Signing you in...</p>
+  <script>
+    // Read token from query and store in localStorage, then redirect to dashboard
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const name = params.get('name');
+    if (token) {
+      localStorage.setItem('token', token);
+      if (name) localStorage.setItem('userName', decodeURIComponent(name));
+      // Try to determine role from server before redirecting so admins don't land on user dashboard
+      (async () => {
+        try {
+          const resp = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+          if (resp.ok) {
+            const data = await resp.json();
+            const serverRole = data.user && data.user.role ? data.user.role : 'student';
+            localStorage.setItem('role', serverRole);
+            if (serverRole === 'admin') {
+              window.location.replace('admin-dashboard.html');
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch /api/auth/me during OAuth redirect', err);
+        }
+        // default for non-admin or on error
+        window.location.replace('dashboard.html');
+      })();
+    } else {
+      document.body.innerHTML = '<p class="text-red-500">OAuth failed: no token returned.</p>';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courses - SkillHub NG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+
+    <!-- Header & Navigation -->
+    <header class="bg-white shadow-md">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html" class="text-2xl font-bold text-gray-800">SkillHub NG</a>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="index.html" class="text-gray-600 hover:text-blue-500">Home</a>
+                <a href="courses.html" class="text-blue-500 font-semibold">Courses</a>
+                <a href="dashboard.html" class="text-gray-600 hover:text-blue-500">Dashboard</a>
+            </div>
+            <div class="hidden md:flex items-center space-x-4" id="nav-auth-links">
+                <a href="login.html" class="text-gray-600 hover:text-blue-500">Login</a>
+                <a href="register.html" class="bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-600">Get Started</a>
+            </div>
+             <div class="md:hidden">
+                <button id="mobile-menu-button" class="text-gray-800 focus:outline-none">
+                    <i class="fas fa-bars fa-lg"></i>
+                </button>
+            </div>
+        </nav>
+         <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden">
+            <a href="index.html" class="block py-2 px-4 text-sm hover:bg-gray-200">Home</a>
+            <a href="courses.html" class="block py-2 px-4 text-sm bg-gray-200">Courses</a>
+            <a href="dashboard.html" class="block py-2 px-4 text-sm hover:bg-gray-200">Dashboard</a>
+            <div id="mobile-auth-links">
+                <a href="login.html" class="block py-2 px-4 text-sm hover:bg-gray-200">Login</a>
+                <a href="register.html" class="block py-2 px-4 text-sm bg-blue-500 text-white text-center">Get Started</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800">Our Courses</h1>
+            <p class="text-gray-600 mt-2">Explore our wide range of courses designed to enhance your skills.</p>
+        </header>
+
+        <div id="courses-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Course cards will be dynamically inserted here -->
+        </div>
+        <div id="message-container" class="text-center mt-8"></div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="container mx-auto px-6 text-center">
+             <p>&copy; 2025 SkillHub NG. All rights reserved.</p>
+        </div>
+    </footer>
+    <script>
+        // **** IMPORTANT ****
+        // This URL is for local development in VS Code.
+        // Make sure it matches the port in your server.js (e.g., 3001)
+    const API_BASE_URL = 'http://localhost:3002';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const coursesGrid = document.getElementById('courses-grid');
+            const messageContainer = document.getElementById('message-container');
+            const token = localStorage.getItem('token');
+
+            // --- NEW CODE: Fetch enrolled courses ---
+            let enrolledCoursesSet = new Set();
+            if (token) {
+                try {
+                    const dashboardRes = await fetch(`${API_BASE_URL}/api/dashboard`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (dashboardRes.ok) {
+                        const data = await dashboardRes.json();
+                        data.enrolledCourses.forEach(course => {
+                            enrolledCoursesSet.add(course.id);
+                        });
+                    }
+                } catch (e) {
+                    console.error("Could not fetch enrolled courses list", e);
+                }
+            }
+            // --- END OF NEW CODE ---
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/courses`);
+                if (!response.ok) throw new Error('Failed to load courses');
+                const courses = await response.json();
+
+                if (courses.length === 0) {
+                    coursesGrid.innerHTML = '<p class="text-center col-span-full">No courses available at the moment.</p>';
+                    return;
+                }
+
+                courses.forEach(course => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white rounded-lg shadow-lg overflow-hidden transform hover:-translate-y-2 transition-transform duration-300';
+                    
+                    // --- MODIFIED BUTTON LOGIC ---
+                    let buttonHTML;
+                    if (enrolledCoursesSet.has(course.id)) {
+                        buttonHTML = `<button data-course-id="${course.id}" class="w-full bg-gray-400 text-white px-6 py-3 rounded-full font-semibold cursor-not-allowed" disabled>Enrolled</button>`;
+                    } else {
+                        buttonHTML = `<button data-course-id="${course.id}" class="enroll-btn w-full bg-blue-500 text-white px-6 py-3 rounded-full hover:bg-blue-600 font-semibold">Enroll Now</button>`;
+                    }
+                    // --- END OF MODIFIED BUTTON LOGIC ---
+
+                    card.innerHTML = `
+                        <img src="https://placehold.co/600x400/3498db/ffffff?text=${encodeURIComponent(course.name)}" alt="${course.name}" class="w-full h-48 object-cover">
+                        <div class="p-6">
+                            <h2 class="text-xl font-bold mb-2">${course.name}</h2>
+                            <p class="text-gray-600 mb-4 h-24 overflow-hidden">${course.description}</p>
+                            ${buttonHTML}
+                        </div>
+                    `;
+                    coursesGrid.appendChild(card);
+                });
+
+                // Add event listeners to all new enroll buttons
+                document.querySelectorAll('.enroll-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        if (!token) {
+                            messageContainer.innerHTML = `<p class="text-red-500">You need to be logged in to enroll. Redirecting...</p>`;
+                            setTimeout(() => window.location.href = 'login.html', 2000);
+                            return;
+                        }
+
+                        const courseId = e.target.getAttribute('data-course-id');
+                        try {
+                            const enrollResponse = await fetch(`${API_BASE_URL}/api/enroll/${courseId}`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const result = await enrollResponse.json();
+                            
+                            if(enrollResponse.ok) {
+                                // Redirect user directly to the enrolled course details page
+                                // (this will also fetch enrollment and show the video lessons)
+                                window.location.href = `course-details.html?id=${courseId}`;
+                                return;
+                            } else {
+                                messageContainer.innerHTML = `<p class="text-red-500 p-4 rounded-lg bg-red-100">${result.message}</p>`;
+                            }
+                            setTimeout(() => { messageContainer.innerHTML = ''; }, 4000);
+
+                        } catch (err) {
+                             messageContainer.innerHTML = `<p class="text-red-500 p-4 rounded-lg bg-red-100">An error occurred during enrollment.</p>`;
+                             setTimeout(() => { messageContainer.innerHTML = ''; }, 4000);
+                        }
+                    });
+                });
+
+            } catch (error) {
+                coursesGrid.innerHTML = '<p class="text-center text-red-500 col-span-full">Could not load courses. Please ensure the server is running and the API URL is correct.</p>';
+            }
+            
+            // Shared script for nav and logout
+            const navAuthLinks = document.getElementById('nav-auth-links');
+            const mobileAuthLinks = document.getElementById('mobile-auth-links');
+
+            if (token) {
+                const userName = localStorage.getItem('userName') || 'User';
+                navAuthLinks.innerHTML = `
+                    <span class="text-gray-600">Welcome, ${userName}!</span>
+                    <button id="logout-button-desktop" class="bg-red-500 text-white px-4 py-2 rounded-full hover:bg-red-600">Logout</button>
+                `;
+                mobileAuthLinks.innerHTML = `
+                    <span class="block py-2 px-4 text-sm text-gray-700">Welcome, ${userName}!</span>
+                    <button id="logout-button-mobile" class="block w-full text-left py-2 px-4 text-sm bg-red-500 text-white">Logout</button>
+                `;
+                 document.getElementById('logout-button-desktop').addEventListener('click', logout);
+                 document.getElementById('logout-button-mobile').addEventListener('click', logout);
+
+                // If token exists, first check localStorage role for immediate UI update
+                try {
+                    const storedRole = localStorage.getItem('role');
+                    if (storedRole === 'admin') {
+                        const adminLink = `<a href="admin-courses.html" class="text-gray-600 hover:text-blue-500">Admin</a>`;
+                        const navContainer = document.querySelector('nav .md\\:flex');
+                        if (navContainer) navContainer.insertAdjacentHTML('beforeend', adminLink);
+                        const mobileMenuDiv = document.getElementById('mobile-menu');
+                        if (mobileMenuDiv) mobileMenuDiv.insertAdjacentHTML('beforeend', `<a href="admin-courses.html" class="block py-2 px-4 text-sm hover:bg-gray-200">Admin</a>`);
+                    } else {
+                        // fallback: ask server for role (ensures accuracy if localStorage is stale)
+                        const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+                        if (meRes.ok) {
+                            const meData = await meRes.json();
+                            if (meData.user && meData.user.role === 'admin') {
+                                const adminLink = `<a href="admin-courses.html" class="text-gray-600 hover:text-blue-500">Admin</a>`;
+                                const navContainer = document.querySelector('nav .md\\:flex');
+                                if (navContainer) navContainer.insertAdjacentHTML('beforeend', adminLink);
+                                if (mobileMenuDiv) mobileMenuDiv.insertAdjacentHTML('beforeend', `<a href="admin-courses.html" class="block py-2 px-4 text-sm hover:bg-gray-200">Admin</a>`);
+                                // cache role locally for next page load
+                                localStorage.setItem('role', 'admin');
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Could not determine user role for admin link', e);
+                }
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('role');
+            window.location.href = 'login.html';
+        }
+
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+</body>
+</html>
+
